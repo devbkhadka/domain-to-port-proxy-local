@@ -1,0 +1,11 @@
+version: '3'
+services:
+  nginx:
+    image: fabiocicerchia/nginx-lua
+    container_name: nginx_domain_forwarding
+    ports:
+      - "80:80"
+    volumes:
+      - ./config:/etc/nginx/templates:ro
+      - ./config/domain_mapping.yaml:/etc/nginx/domain_mapping.yaml:ro
+    command: ["nginx", "-g", "daemon off;"]

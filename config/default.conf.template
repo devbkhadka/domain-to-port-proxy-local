@@ -1,0 +1,53 @@
+     server {
+        resolver 127.0.0.11;
+        listen 80;
+        server_name _;
+
+        location / {
+            # Path to the file containing domain name-port mappings
+            set $map_file "/etc/nginx/domain_mapping.yaml";
+
+            # Read the mapping from the file and set the appropriate port variable
+            # rewrite ^(.*)$ /index.html last;
+            set_by_lua_block $port {
+                local f = io.open(ngx.var.map_file, "r")
+                local requested_port = 3400
+                local linet = ""
+                local domain_port_map = {}
+
+                if f then
+                    local domain_key = ""
+                    local loc_port = ""
+                    for line in f:lines() do
+                        domain_key, loc_port = line:match"(%S+)%s+(%S+)"
+                        if domain_key and loc_port then
+                            domain_port_map[domain_key] = loc_port
+                        end
+                    end
+
+                    f:close()
+
+                    requested_port = domain_port_map[ngx.var.host]
+                end
+
+                return requested_port
+            }
+
+            # Read the domain name from the request
+            if ($host ~* ^([a-zA-Z0-9.-]+)$) {
+                set $domain $1;
+            }
+
+            # add_header Content-Type text/plain;
+            # return 200 "requested_port: $port";
+
+            # Proxy pass the request to the appropriate port on localhost
+            proxy_pass http://host.docker.internal:$port;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+        }
+    }
